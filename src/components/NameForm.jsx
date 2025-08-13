@@ -137,8 +137,8 @@ const NameForm = ({ onGenerate, isLoading }) => {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8 relative">
-        {/* Photo Upload Section */}
-        <div className="relative">
+        {/* Photo Upload Section - TEMPORARILY HIDDEN */}
+        <div className="relative" style={{ display: 'none' }}>
           <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center">
             <Camera className="w-4 h-4 mr-2 text-purple-500" />
             Upload a photo (optional)
