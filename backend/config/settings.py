@@ -37,15 +37,17 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
     
-    # OpenAI API settings
-    openai_api_key: Optional[str] = None
-    openai_model: str = "gpt-3.5-turbo"
-    openai_max_tokens: int = 1000
-    openai_temperature: float = 0.8
-    openai_top_p: float = 0.9
-    openai_timeout: float = 30.0
-    openai_max_retries: int = 3
-    openai_base_url: str = "https://api.openai.com/v1"
+    # OpenRouter API settings
+    openrouter_api_key: Optional[str] = None  # Changed from openai_api_key
+    openrouter_model: str = "openai/gpt-oss-20b:free"  # Changed to OpenRouter's free model
+    openrouter_max_tokens: int = 1000
+    openrouter_temperature: float = 0.8
+    openrouter_top_p: float = 0.9
+    openrouter_timeout: float = 30.0
+    openrouter_max_retries: int = 3
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"  # Changed to OpenRouter endpoint
+    openrouter_site_url: str = "https://nomora-paw.netlify.app"  # Added OpenRouter-specific setting
+    openrouter_app_name: str = "NomoraPaw"  # Added OpenRouter-specific setting
     
     # CORS settings
     cors_origins: list = [
@@ -54,21 +56,21 @@ class Settings(BaseSettings):
         "https://*.vercel.app"
     ]
     
-    @validator("openai_api_key")
-    def validate_openai_api_key(cls, v):
-        """Validate OpenAI API key format."""
-        if v and not v.startswith('sk-'):
-            raise ValueError("OpenAI API key must start with 'sk-'")
+    @validator("openrouter_api_key")
+    def validate_openrouter_api_key(cls, v):
+        """Validate OpenRouter API key format."""
+        if v and len(v) < 10:  # Basic validation - OpenRouter keys don't have specific format
+            raise ValueError("OpenRouter API key appears to be invalid")
         return v
     
-    @validator("openai_temperature")
+    @validator("openrouter_temperature")
     def validate_temperature(cls, v):
         """Validate temperature range."""
         if not 0 <= v <= 2:
             raise ValueError("Temperature must be between 0 and 2")
         return v
     
-    @validator("openai_top_p")
+    @validator("openrouter_top_p")
     def validate_top_p(cls, v):
         """Validate top_p range."""
         if not 0 <= v <= 1:

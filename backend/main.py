@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import List
 import os
 from contextlib import asynccontextmanager
-from services.openai_service import OpenAIService, OpenAIError, AuthenticationError, RateLimitError, QuotaExceededError, ModelError
+from services.openai_service import OpenRouterService, OpenRouterError, AuthenticationError, RateLimitError, QuotaExceededError, ModelError
 
 # Pydantic models
 class NameRequest(BaseModel):
@@ -20,21 +20,21 @@ class NameResponse(BaseModel):
 class GenerateResponse(BaseModel):
     results: List[NameResponse]
 
-# Global OpenAI service
-openai_service = None
+# Global OpenRouter service
+openrouter_service = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global openai_service
-    openai_service = OpenAIService()
-    await openai_service.start()
+    global openrouter_service
+    openrouter_service = OpenRouterService()  # Changed to OpenRouterService
+    await openrouter_service.start()
     yield
-    await openai_service.close()
+    await openrouter_service.close()
 
 # FastAPI app with lifespan management
 app = FastAPI(
     title="NomoraPaw API",
-    description="Pet name generator API using Mistral AI",
+    description="Pet name generator API using OpenRouter",  # Updated description
     version="1.0.0",
     lifespan=lifespan
 )
@@ -55,8 +55,8 @@ async def root():
 @app.post("/api/generate-names", response_model=GenerateResponse)
 async def generate_names(request: NameRequest):
     try:
-        # Use OpenAI service to generate names
-        pet_names = await openai_service.generate_pet_names(
+        # Use OpenRouter service to generate names
+        pet_names = await openrouter_service.generate_pet_names(  # Changed service reference
             animal=request.animal,
             traits=request.traits,
             theme=request.theme,
@@ -79,8 +79,8 @@ async def generate_names(request: NameRequest):
         raise HTTPException(status_code=402, detail=f"Quota exceeded: {str(e)}")
     except ModelError as e:
         raise HTTPException(status_code=400, detail=f"Model error: {str(e)}")
-    except OpenAIError as e:
-        raise HTTPException(status_code=500, detail=f"OpenAI service error: {str(e)}")
+    except OpenRouterError as e:  # Updated exception type
+        raise HTTPException(status_code=500, detail=f"OpenRouter service error: {str(e)}")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Invalid input: {str(e)}")
     except HTTPException:
@@ -95,7 +95,7 @@ async def generate_names(request: NameRequest):
 async def health_check():
     """Health check endpoint for monitoring."""
     try:
-        health_status = await openai_service.health_check()
+        health_status = await openrouter_service.health_check()  # Changed service reference
         return health_status
     except Exception as e:
         return {

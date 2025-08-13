@@ -1,14 +1,14 @@
 """
-Production-ready OpenAI API service for pet name generation.
+Production-ready OpenRouter API service for pet name generation using OpenAI GPT-OSS-20B.
 
 This module provides a robust, secure, and maintainable service for integrating
-with OpenAI's GPT-3.5-turbo model. It includes comprehensive error handling,
+with OpenRouter's API using the openai/gpt-oss-20b:free model. It includes comprehensive error handling,
 retry logic, caching, and security best practices.
 
 Example:
-    from services.openai_service import OpenAIService
+    from services.openai_service import OpenRouterService
     
-    service = OpenAIService()
+    service = OpenRouterService()
     names = await service.generate_pet_names(
         animal="dog",
         traits=["playful", "loyal"],
@@ -36,27 +36,27 @@ from tenacity import (
 )
 
 
-class OpenAIError(Exception):
-    """Base exception for OpenAI service errors."""
+class OpenRouterError(Exception):
+    """Base exception for OpenRouter service errors."""
     pass
 
 
-class AuthenticationError(OpenAIError):
+class AuthenticationError(OpenRouterError):
     """Raised when API key authentication fails."""
     pass
 
 
-class RateLimitError(OpenAIError):
+class RateLimitError(OpenRouterError):
     """Raised when API rate limits are exceeded."""
     pass
 
 
-class QuotaExceededError(OpenAIError):
+class QuotaExceededError(OpenRouterError):
     """Raised when API quota is exceeded."""
     pass
 
 
-class ModelError(OpenAIError):
+class ModelError(OpenRouterError):
     """Raised when there's an issue with the model or request."""
     pass
 
@@ -69,17 +69,19 @@ class Environment(Enum):
 
 
 @dataclass
-class OpenAIConfig:
-    """Configuration class for OpenAI service."""
+class OpenRouterConfig:
+    """Configuration class for OpenRouter service."""
     api_key: str
-    model: str = "gpt-3.5-turbo"
+    model: str = "openai/gpt-oss-20b:free"  # Changed to OpenRouter's free model
     max_tokens: int = 1000
     temperature: float = 0.8
     top_p: float = 0.9
     timeout: float = 30.0
     max_retries: int = 3
-    base_url: str = "https://api.openai.com/v1"
+    base_url: str = "https://openrouter.ai/api/v1"  # Changed to OpenRouter endpoint
     environment: Environment = Environment.PRODUCTION
+    site_url: str = "https://nomora-paw.netlify.app"  # Added for OpenRouter headers
+    app_name: str = "NomoraPaw"  # Added for OpenRouter headers
 
 
 @dataclass
@@ -89,23 +91,23 @@ class PetNameResult:
     reason: str
 
 
-class OpenAIService:
+class OpenRouterService:
     """
-    Production-ready OpenAI API service for pet name generation.
+    Production-ready OpenRouter API service for pet name generation.
     
-    This service provides secure, robust integration with OpenAI's GPT-3.5-turbo
-    model, including comprehensive error handling, retry logic, and caching.
+    This service provides secure, robust integration with OpenRouter's API
+    using the openai/gpt-oss-20b:free model, including comprehensive error handling, retry logic, and caching.
     
     Attributes:
-        config: OpenAI configuration settings
+        config: OpenRouter configuration settings
         client: HTTP client for API requests
         logger: Logger instance for debugging and monitoring
         cache: Simple in-memory cache for responses
     """
     
-    def __init__(self, config: Optional[OpenAIConfig] = None):
+    def __init__(self, config: Optional[OpenRouterConfig] = None):
         """
-        Initialize the OpenAI service.
+        Initialize the OpenRouter service.
         
         Args:
             config: Optional configuration object. If not provided, will be
@@ -124,16 +126,16 @@ class OpenAIService:
         self._validate_config()
         
         self.logger.info(
-            f"OpenAI service initialized for {self.config.environment.value} environment"
+            f"OpenRouter service initialized for {self.config.environment.value} environment with model {self.config.model}"
         )
     
-    def _create_config_from_env(self) -> OpenAIConfig:
+    def _create_config_from_env(self) -> OpenRouterConfig:
         """Create configuration from environment variables."""
-        api_key = os.getenv("OPENAI_API_KEY")
+        api_key = os.getenv("OPENROUTER_API_KEY")  # Changed environment variable name
         if not api_key:
             raise ValueError(
-                "OPENAI_API_KEY environment variable is required. "
-                "Please set it with your OpenAI API key."
+                "OPENROUTER_API_KEY environment variable is required. "
+                "Please set it with your OpenRouter API key."
             )
         
         env_name = os.getenv("ENVIRONMENT", "production").lower()
@@ -142,20 +144,22 @@ class OpenAIService:
         except ValueError:
             environment = Environment.PRODUCTION
         
-        return OpenAIConfig(
+        return OpenRouterConfig(
             api_key=api_key,
-            model=os.getenv("OPENAI_MODEL", "gpt-3.5-turbo"),
-            max_tokens=int(os.getenv("OPENAI_MAX_TOKENS", "1000")),
-            temperature=float(os.getenv("OPENAI_TEMPERATURE", "0.8")),
-            top_p=float(os.getenv("OPENAI_TOP_P", "0.9")),
-            timeout=float(os.getenv("OPENAI_TIMEOUT", "30.0")),
-            max_retries=int(os.getenv("OPENAI_MAX_RETRIES", "3")),
-            environment=environment
+            model=os.getenv("OPENROUTER_MODEL", "openai/gpt-oss-20b:free"),  # Changed default model
+            max_tokens=int(os.getenv("OPENROUTER_MAX_TOKENS", "1000")),
+            temperature=float(os.getenv("OPENROUTER_TEMPERATURE", "0.8")),
+            top_p=float(os.getenv("OPENROUTER_TOP_P", "0.9")),
+            timeout=float(os.getenv("OPENROUTER_TIMEOUT", "30.0")),
+            max_retries=int(os.getenv("OPENROUTER_MAX_RETRIES", "3")),
+            environment=environment,
+            site_url=os.getenv("OPENROUTER_SITE_URL", "https://nomora-paw.netlify.app"),  # Added OpenRouter-specific config
+            app_name=os.getenv("OPENROUTER_APP_NAME", "NomoraPaw")  # Added OpenRouter-specific config
         )
     
     def _setup_logging(self) -> logging.Logger:
         """Set up logging configuration."""
-        logger = logging.getLogger(f"openai_service.{self.config.environment.value}")
+        logger = logging.getLogger(f"openrouter_service.{self.config.environment.value}")  # Changed logger name
         
         if not logger.handlers:
             handler = logging.StreamHandler()
@@ -177,8 +181,8 @@ class OpenAIService:
     
     def _validate_config(self) -> None:
         """Validate configuration parameters."""
-        if not self.config.api_key or not self.config.api_key.startswith('sk-'):
-            raise ValueError("Invalid OpenAI API key format")
+        if not self.config.api_key:
+            raise ValueError("OpenRouter API key is required")  # Removed OpenAI-specific validation
         
         if self.config.temperature < 0 or self.config.temperature > 2:
             raise ValueError("Temperature must be between 0 and 2")
@@ -327,6 +331,7 @@ Make sure each name is creative, relevant, and the reason explains the connectio
             error_type = "http_error"
         
         self.logger.error(f"OpenAI API error: {error_message}")
+        self.logger.error(f"OpenRouter API error: {error_message}")  # Updated error message
         
         if response.status_code == 401:
             raise AuthenticationError(f"Authentication failed: {error_message}")
@@ -337,7 +342,7 @@ Make sure each name is creative, relevant, and the reason explains the connectio
         elif 400 <= response.status_code < 500:
             raise ModelError(f"Client error: {error_message}")
         else:
-            raise OpenAIError(f"Server error: {error_message}")
+            raise OpenRouterError(f"Server error: {error_message}")  # Updated exception type
     
     @retry(
         stop=stop_after_attempt(3),
@@ -346,13 +351,16 @@ Make sure each name is creative, relevant, and the reason explains the connectio
         before_sleep=before_sleep_log(logging.getLogger(__name__), logging.INFO)
     )
     async def _make_api_request(self, prompt: str) -> str:
-        """Make API request to OpenAI with retry logic."""
+        """Make API request to OpenRouter with retry logic."""
         if not self.client:
             await self.start()
         
+        # Updated headers for OpenRouter API
         headers = {
             "Authorization": f"Bearer {self.config.api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "HTTP-Referer": self.config.site_url,  # OpenRouter recommended header
+            "X-Title": self.config.app_name  # OpenRouter recommended header
         }
         
         payload = {
@@ -372,7 +380,7 @@ Make sure each name is creative, relevant, and the reason explains the connectio
             "max_tokens": self.config.max_tokens
         }
         
-        self.logger.debug(f"Making API request with model: {self.config.model}")
+        self.logger.debug(f"Making OpenRouter API request with model: {self.config.model}")  # Updated log message
         
         try:
             response = await self.client.post(
@@ -392,7 +400,7 @@ Make sure each name is creative, relevant, and the reason explains the connectio
             
         except httpx.RequestError as e:
             self.logger.error(f"Network error: {e}")
-            raise OpenAIError(f"Network error: {e}")
+            raise OpenRouterError(f"Network error: {e}")  # Updated exception type
     
     async def generate_pet_names(
         self,
@@ -402,7 +410,7 @@ Make sure each name is creative, relevant, and the reason explains the connectio
         num_names: int = 5
     ) -> List[PetNameResult]:
         """
-        Generate pet names using OpenAI GPT-3.5-turbo.
+        Generate pet names using OpenRouter's openai/gpt-oss-20b:free model.
         
         Args:
             animal: Type of animal (e.g., "dog", "cat", "rabbit")
@@ -419,7 +427,7 @@ Make sure each name is creative, relevant, and the reason explains the connectio
             RateLimitError: If rate limits are exceeded
             QuotaExceededError: If API quota is exceeded
             ModelError: If there's an issue with the model or request
-            OpenAIError: For other API-related errors
+           OpenRouterError: For other API-related errors
         """
         # Validate inputs
         if not animal or not isinstance(animal, str):
@@ -460,7 +468,7 @@ Make sure each name is creative, relevant, and the reason explains the connectio
     
     async def health_check(self) -> Dict[str, Any]:
         """
-        Perform a health check of the OpenAI service.
+        Perform a health check of the OpenRouter service.
         
         Returns:
             Dictionary containing health status information
